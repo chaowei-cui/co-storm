@@ -259,7 +259,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_search_thread",
         type=int,
-        default=5,
+        default=1,
         help="Maximum number of parallel threads for retriever.",
     )
     parser.add_argument(
@@ -283,13 +283,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--warmstart_max_thread",
         type=int,
-        default=3,
+        default=1,
         help="Max number of threads for parallel perspective-guided QA during warm start.",
     )
     parser.add_argument(
         "--max_thread_num",
         type=int,
-        default=5,
+        default=1,
         help=(
             "Maximum number of threads to use. "
             "Consider reducing it if you keep getting 'Exceed rate limit' errors when calling the LM API."

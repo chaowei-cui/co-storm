@@ -334,7 +334,9 @@ class DiscourseManager:
         self.rm = rm
         self.encoder = encoder
         # role management
+        # 专家列表  
         self.experts: List[CoStormExpert] = []
+        # 模拟用户
         self.simulated_user: SimulatedUser = SimulatedUser(
             topic=self.runner_argument.topic,
             role_name="Guest",
@@ -345,6 +347,7 @@ class DiscourseManager:
             logging_wrapper=self.logging_wrapper,
             callback_handler=self.callback_handler,
         )
+        # 纯RAG
         self.pure_rag_agent: PureRAGAgent = PureRAGAgent(
             topic=self.runner_argument.topic,
             role_name="PureRAG",
@@ -355,6 +358,7 @@ class DiscourseManager:
             rm=self.rm,
             callback_handler=self.callback_handler,
         )
+        # 主持人
         self.moderator: Moderator = Moderator(
             topic=self.runner_argument.topic,
             role_name="Moderator",
@@ -365,6 +369,7 @@ class DiscourseManager:
             encoder=self.encoder,
             callback_handler=self.callback_handler,
         )
+        # 通用知识提供者
         self.general_knowledge_provider = CoStormExpert(
             topic=self.runner_argument.topic,
             role_name="General Knowledge Provider",
@@ -375,9 +380,11 @@ class DiscourseManager:
             rm=self.rm,
             callback_handler=self.callback_handler,
         )
+        # 生成专家模块
         self.generate_expert_module = GenerateExpertModule(
             engine=self.lm_config.discourse_manage_lm
         )
+        # 主持人是否重写
         self.next_turn_moderator_override = False
 
     def serialize_experts(self) -> List[Dict]:

@@ -7,6 +7,7 @@ import backoff
 import dspy
 import requests
 from dsp import backoff_hdlr, giveup_hdlr
+from semanticscholar import SemanticScholar
 
 from .utils import WebPageHelper
 
@@ -74,8 +75,7 @@ class YouRM(dspy.Retrieve):
 
         return collected_results
 
-
-class BochaSearch(dspy.Retrieve):
+class ScholarSearch(dspy.Retrieve):
     def __init__(
         self,
         bing_search_api_key=None,
@@ -86,6 +86,7 @@ class BochaSearch(dspy.Retrieve):
         webpage_helper_max_threads=10,
         mkt="en-US",
         language="en",
+
         **kwargs,
     ):
         """
@@ -97,16 +98,16 @@ class BochaSearch(dspy.Retrieve):
             - Reference: https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search/reference/query-parameters
         """
         super().__init__(k=k)
-        if not bing_search_api_key and not os.environ.get("BING_SEARCH_API_KEY"):
-            raise RuntimeError(
-                "You must supply bing_search_subscription_key or set environment variable BING_SEARCH_API_KEY"
-            )
-        elif bing_search_api_key:
-            self.bing_api_key = bing_search_api_key
-        else:
-            self.bing_api_key = os.environ["BING_SEARCH_API_KEY"]
-        self.endpoint = "https://api.bochaai.com/v1/web-search"
-        self.params = {"mkt": mkt, "setLang": language, "count": k, **kwargs}
+        # if not bing_search_api_key and not os.environ.get("BING_SEARCH_API_KEY"):
+        #     raise RuntimeError(
+        #         "You must supply bing_search_subscription_key or set environment variable BING_SEARCH_API_KEY"
+        #     )
+        # elif bing_search_api_key:
+        #     self.bing_api_key = bing_search_api_key
+        # else:
+        #     self.bing_api_key = os.environ["BING_SEARCH_API_KEY"]
+        # self.endpoint = "https://api.bochaai.com/v1/web-search"
+        self.limit = k
         self.webpage_helper = WebPageHelper(
             min_char_count=min_char_count,
             snippet_chunk_size=snippet_chunk_size,
@@ -127,7 +128,10 @@ class BochaSearch(dspy.Retrieve):
         return {"BingSearch": usage}
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
+        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = [],
+        offset=0, fields=["title", "paperId", "abstract", "isOpenAccess", 'openAccessPdf', "year","publicationDate","citations.title","citations.abstract","citations.isOpenAccess","citations.openAccessPdf","citations.citationCount","citationCount","citations.year"],
+                            publicationDate=None, minCitationCount=0, year=None, 
+                            publicationTypes=None, fieldsOfStudy=None,
     ):
         """Search with Bing for self.k top passages for query or queries
 
@@ -147,15 +151,30 @@ class BochaSearch(dspy.Retrieve):
 
         url_to_results = {}
 
-        headers = {"Ocp-Apim-Subscription-Key": self.bing_api_key}
 
         for query in queries:
             try:
-                results = requests.get(
-                    self.endpoint, headers=headers, params={**self.params, "q": query}
-                ).json()
 
-                for d in results["webPages"]["value"]:
+                payload = json.dumps({
+                    "query": query,
+                    **self.params
+                })
+                fields=["title", "paperId", "abstract", "isOpenAccess", 'openAccessPdf', "year","publicationDate","citations.title","citations.abstract","citations.isOpenAccess","citations.openAccessPdf","citations.citationCount","citationCount","citations.year"]
+                payload = {
+                    'query': query,
+                    'year': year,
+                    "fields": fields,
+                    "publication_date_or_year":publicationDate,
+                    "min_citation_count":minCitationCount,
+                    "limit":self.limit,
+                    "publication_types":publicationTypes,
+                    "fields_of_study":fieldsOfStudy
+                }
+
+                sch = SemanticScholar()
+                response = sch.search_paper(**payload)
+                # url,title,abstract
+                for d in response:
                     if self.is_valid_source(d["url"]) and d["url"] not in exclude_urls:
                         url_to_results[d["url"]] = {
                             "url": d["url"],
@@ -175,6 +194,9 @@ class BochaSearch(dspy.Retrieve):
             collected_results.append(r)
 
         return collected_results
+
+
+class BochaSearch(dspy.Retrieve):
     def __init__(
         self,
         bing_search_api_key=None,
@@ -246,24 +268,19 @@ class BochaSearch(dspy.Retrieve):
 
         url_to_results = {}
 
-        headers = {"Ocp-Apim-Subscription-Key": self.bing_api_key}
+        headers = {
+        'Authorization': 'Bearer sk-b1f4d5b358ad49738e5c399a663b79ca',
+        'Content-Type': 'application/json'
+        }
 
         for query in queries:
             try:
-                headers = {
-                'Authorization': 'Bearer sk-b1f4d5b358ad49738e5c399a663b79ca',
-                'Content-Type': 'application/json'
-                }
+
                 payload = json.dumps({
                     "query": query,
                     **self.params
                 })
-                # payload = json.dumps({
-                #     "query": query,
-                #     "summary": True,
-                #     "count": 10,
-                #     "page": 1
-                #     })
+
                 results = requests.request("POST", self.endpoint, headers=headers, data=payload).json()
 
                 for d in results["data"]["webPages"]["value"]:
@@ -1549,3 +1566,6 @@ class AzureAISearch(dspy.Retrieve):
                 logging.error(f"Error occurs when searching query {query}: {e}")
 
         return collected_results
+
+
+
