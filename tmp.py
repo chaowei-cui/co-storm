@@ -40,7 +40,7 @@ class ScholarSearch(dspy.Retrieve):
             max_thread_num=webpage_helper_max_threads,
         )
         self.usage = 0
-        self.reader = SementicSearcher(save_file = "tmp_file/",ban_paper = [],grobid_url="223.99.170.187:8070")
+        self.reader = SementicSearcher(save_file = "tmp_file/",ban_paper = [],grobid_url="http://223.99.170.187:8070")
         self.limit = k
 
 
