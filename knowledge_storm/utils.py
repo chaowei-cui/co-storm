@@ -710,6 +710,13 @@ class WebPageHelper:
 
         return articles
 
+    def article_to_snippets(self, articles: List[Dict]) -> Dict:    
+        for url,article in articles.items():
+            content = ''
+            for s in article['sections']:
+                content = content + s['heading']+"\t"+s['text'] +"\t"
+            article["snippets"] = self.text_splitter.split_text(content)
+        return articles
 
 def user_input_appropriateness_check(user_input):
     my_openai_model = LitellmModel(

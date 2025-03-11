@@ -1,6 +1,6 @@
 import dspy
 from typing import Callable, Union, List
-from searcher import SementicSearcher
+from knowledge_storm.sementic_search import SementicSearcher
 import logging
 import json
 from typing import List, Union
@@ -88,13 +88,13 @@ class ScholarSearch(dspy.Retrieve):
                             "url": url,
                             "title": paper.title,
                             "description": paper.abstract,
+                            "sections": paper.article["sections"],
                         }
             except Exception as e:
                 logging.error(f"Error occurs when searching query {query}: {e}")
 
-        valid_url_to_snippets = self.webpage_helper.urls_to_snippets(
-            list(url_to_results.keys())
-        )
+        valid_url_to_snippets = self.webpage_helper.article_to_snippets(url_to_results)
+        
         collected_results = []
         for url in valid_url_to_snippets:
             r = url_to_results[url]

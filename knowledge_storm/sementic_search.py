@@ -137,51 +137,6 @@ class SementicSearcher:
             print(f"An error occurred: {e}")
             return None
 
-    #  def search_papers_(self, query, limit=3, offset=0, fields=["title", "paperId", "abstract", "isOpenAccess", 'openAccessPdf', "year","publicationDate","citations.title","citations.abstract","citations.isOpenAccess","citations.openAccessPdf","citations.citationCount","citationCount","citations.year"],
-    #                         publicationDate=None, minCitationCount=0, year=None, 
-    #                         publicationTypes=None, fieldsOfStudy=None):
-    #     # #镜像源
-    #     url = 'https://api.ominiai.cn/generalProxy/graph/v1/paper/search'
-    #     fields = process_fields(fields) if isinstance(fields, list) else fields
-        
-    #     # More specific query parameter
-    #     query_params = {
-    #         'query': query,
-    #         "limit": limit,
-    #         "offset": offset,
-    #         'fields': fields,
-    #         'publicationDateOrYear': publicationDate,
-    #         'minCitationCount': minCitationCount,
-    #         'year': year,
-    #         'publicationTypes': publicationTypes,
-    #         'fieldsOfStudy': fieldsOfStudy
-    #     }
-
-    #     fields = process_fields(fields) if isinstance(fields, list) else fields
-
-    #     try:
-    #         filtered_query_params = {key: value for key, value in query_params.items() if value is not None}
-    #         # Load the API key from the configuration file
-    #         api_key = os.environ.get("SEMENTIC_SEARCH_API_KEY", None)
-    #         # headers = {'x-api-key': api_key} if api_key else None
-    #         headers = {'Authorization': api_key,'OMINI-API-Model': 'semantic',}
-    #         response = requests.get(url, params=filtered_query_params, headers=headers)
-
-    #         if response.status_code == 200:
-    #             response_data = response.json()
-    #             return response_data
-    #         elif response.status_code == 429:
-    #             print(f"Request failed with status code {response.status_code}: begin to retry")
-    #             return self.search_papers_(query, limit, offset, fields, publicationDate, minCitationCount, year, publicationTypes, fieldsOfStudy)
-    #         else:
-    #             print(f"Request failed with status code {response.status_code}: {response.text}")
-    #             return None
-            
-    #     except requests.RequestException as e:
-    #         print(f"An error occurred: {e}")
-    #         return None    
-
-
     def cal_cosine_similarity(self, vec1, vec2):
         return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
     
@@ -266,6 +221,7 @@ class SementicSearcher:
         final_results = []
         for result in paper_candidates:
             article = None
+            url = result['openAccessPdf']["url"]
             if need_download:
                 if os.path.exists(os.path.join(self.save_file, f"{result['title']}.pdf")):
                     article = self.read_arxiv_from_path(os.path.join(self.save_file, f"{result['title']}.pdf"))
@@ -274,9 +230,9 @@ class SementicSearcher:
                     article = self.read_arxiv_from_link_(pdf_link, f"{result['title']}.pdf")
                 if not article:
                     continue
-            title,abstract,citationCount,year = result["title"],result["abstract"],result["citationCount"],result["year"]
+            title,abstract,citationCount,year = result["title"],article["abstract"],result["citationCount"],result["year"]
             logger.info(f"成功检索到{title}!")
-            final_results.append(Result(title,abstract,article,citationCount,year))
+            final_results.append(Result(title,abstract,article,citationCount,year,url))
             if len(final_results) >= max_results:
                 break
         return final_results

@@ -35,6 +35,7 @@ from knowledge_storm.rm import (
     TavilySearchRM,
     SearXNG,
     BochaSearch,
+    ScholarSearch,
 )
 from knowledge_storm.utils import load_api_key
 
@@ -128,6 +129,11 @@ def main(args):
     # Co-STORM is a knowledge curation system which consumes information from the retrieval module.
     # Currently, the information source is the Internet and we use search engine API as the retrieval module.
     match args.retriever:
+        case "scholar":
+            rm = ScholarSearch(
+                bing_search_api_key=os.getenv("BING_SEARCH_API_KEY"),
+                k=runner_argument.retrieve_top_k,
+            )
         case "bocha":
             rm = BochaSearch(
                 bing_search_api=os.getenv("BING_SEARCH_API_KEY"),
@@ -192,8 +198,8 @@ def main(args):
         print(f"**{conv_turn.role}**: {conv_turn.utterance}\n")
 
     # active engaging by injecting your utterance
-    your_utterance = input("Your utterance: ")
-    costorm_runner.step(user_utterance=your_utterance)
+    # your_utterance = input("Your utterance: ")
+    # costorm_runner.step(user_utterance=your_utterance)
 
     # continue observing
     conv_turn = costorm_runner.step()
@@ -227,14 +233,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="./results/co-storm",
+        default="./results/co-storm-r1",
         help="Directory to store the outputs.",
     )
     parser.add_argument(
         "--retriever",
         type=str,
-        choices=["bing", "you", "brave", "serper", "duckduckgo", "tavily", "searxng", "bocha"],
-        default="bocha",
+        choices=["bing", "you", "brave", "serper", "duckduckgo", "tavily", "searxng", "bocha","scholar"],
+        default="scholar",
         help="The search engine API to use for retrieving information.",
     )
     # hyperparameters for co-storm
@@ -247,7 +253,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_search_queries",
         type=int,
-        default=2,
+        default=3,
         help="Maximum number of search queries to consider for each question.",
     )
     parser.add_argument(
@@ -259,7 +265,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_search_thread",
         type=int,
-        default=1,
+        default=5,
         help="Maximum number of parallel threads for retriever.",
     )
     parser.add_argument(
@@ -283,13 +289,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--warmstart_max_thread",
         type=int,
-        default=1,
+        default=5,
         help="Max number of threads for parallel perspective-guided QA during warm start.",
     )
     parser.add_argument(
         "--max_thread_num",
         type=int,
-        default=1,
+        default=5,
         help=(
             "Maximum number of threads to use. "
             "Consider reducing it if you keep getting 'Exceed rate limit' errors when calling the LM API."
