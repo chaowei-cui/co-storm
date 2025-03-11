@@ -1,12 +1,13 @@
 import dspy
 from typing import Callable, Union, List
-from semanticscholar import SemanticScholar
+from searcher import SementicSearcher
 import logging
 import json
 from typing import List, Union
 import scipdf
 from knowledge_storm.utils import WebPageHelper
-
+import requests 
+import os
 
 class ScholarSearch(dspy.Retrieve):
     def __init__(
@@ -19,7 +20,6 @@ class ScholarSearch(dspy.Retrieve):
         webpage_helper_max_threads=10,
         mkt="en-US",
         language="en",
-
         **kwargs,
     ):
         """
@@ -31,22 +31,18 @@ class ScholarSearch(dspy.Retrieve):
             - Reference: https://learn.microsoft.com/en-us/bing/search-apis/bing-web-search/reference/query-parameters
         """
         super().__init__(k=k)
-        # if not bing_search_api_key and not os.environ.get("BING_SEARCH_API_KEY"):
-        #     raise RuntimeError(
-        #         "You must supply bing_search_subscription_key or set environment variable BING_SEARCH_API_KEY"
-        #     )
-        # elif bing_search_api_key:
-        #     self.bing_api_key = bing_search_api_key
-        # else:
-        #     self.bing_api_key = os.environ["BING_SEARCH_API_KEY"]
-        # self.endpoint = "https://api.bochaai.com/v1/web-search"
-        self.limit = k
+
+        self.endpoint = "https://api.bochaai.com/v1/web-search"
+        self.params = {"summary": True, "count": k, "page": 1}
         self.webpage_helper = WebPageHelper(
             min_char_count=min_char_count,
             snippet_chunk_size=snippet_chunk_size,
             max_thread_num=webpage_helper_max_threads,
         )
         self.usage = 0
+        self.reader = SementicSearcher(save_file = "tmp_file/",ban_paper = [],grobid_url="223.99.170.187:8070")
+        self.limit = k
+
 
         # If not None, is_valid_source shall be a function that takes a URL and returns a boolean.
         if is_valid_source:
@@ -61,10 +57,7 @@ class ScholarSearch(dspy.Retrieve):
         return {"BingSearch": usage}
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = [],
-        offset=0, fields=["title", "paperId", "abstract", "isOpenAccess", 'openAccessPdf', "year","publicationDate","citations.title","citations.abstract","citations.isOpenAccess","citations.openAccessPdf","citations.citationCount","citationCount","citations.year"],
-                            publicationDate=None, minCitationCount=0, year=None, 
-                            publicationTypes=None, fieldsOfStudy=None,
+        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
     ):
         """Search with Bing for self.k top passages for query or queries
 
@@ -84,38 +77,17 @@ class ScholarSearch(dspy.Retrieve):
 
         url_to_results = {}
 
-        valid_url_to_snippets = self.webpage_helper.urls_to_snippets(
-            ["https://www.mdpi.com/1999-4915/13/12/2414/pdf?version=1640245488"])
-        print(valid_url_to_snippets)
-
         for query in queries:
             try:
-
-                # payload = json.dumps({
-                #     "query": query,
-                #     **self.params
-                # })
-                fields=["title", "paperId", "abstract", "isOpenAccess", 'openAccessPdf', "year","publicationDate","citations.title","citations.abstract","citations.isOpenAccess","citations.openAccessPdf","citations.citationCount","citationCount","citations.year"]
-                payload = {
-                    'query': query,
-                    'year': year,
-                    "fields": fields,
-                    "publication_date_or_year":publicationDate,
-                    "min_citation_count":minCitationCount,
-                    "limit":self.limit,
-                    "publication_types":publicationTypes,
-                    "fields_of_study":fieldsOfStudy
-                }
-
-                sch = SemanticScholar()
-                response = sch.search_paper(**payload)
-                # url,title,abstract
-                for d in response:
-                    if self.is_valid_source(d["url"]) and d["url"] not in exclude_urls:
-                        url_to_results[d["url"]] = {
-                            "url": d["url"],
-                            "title": d["name"],
-                            "description": d["snippet"],
+                # paper: list of Result objects
+                papers = self.reader.search_(query,self.limit)
+                for paper in papers:
+                    url = paper.url
+                    if self.is_valid_source(url) and url not in exclude_urls:
+                        url_to_results[url] = {
+                            "url": url,
+                            "title": paper.title,
+                            "description": paper.abstract,
                         }
             except Exception as e:
                 logging.error(f"Error occurs when searching query {query}: {e}")
@@ -134,5 +106,5 @@ class ScholarSearch(dspy.Retrieve):
 if __name__ == "__main__": 
     
     rs = ScholarSearch(k=3)
-    rs.forward("What is the capital of France?")
+    rs.forward("flux pinning")
     print(rs)
